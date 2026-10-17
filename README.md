@@ -1,54 +1,69 @@
-# Keychron Battery (Noctalia)
+# Keychron Battery
 
-Bar widget, panel and low-battery notifications for Keychron mice.
+Shows the battery level of Keychron mice in the bar and sends a notification
+when it runs low. The entry uses the bar's own colors and turns red at the
+notification threshold.
 
-The plugin does no hardware access itself: it reads Keychron mice from UPower
-(`upower --dump`). The widget uses the bar's own text and icon colors and turns
-`error` red at the notification threshold.
+## Plugin
 
-| Mouse connection | Source | Battery |
-| --- | --- | --- |
-| Receiver (Ultra-Link 8K `3434:d028`) or cable (M5 `3434:d048`) | [keychron-battery-dkms](https://github.com/csutcliff/keychron-battery-dkms) kernel module → `/sys/class/power_supply/keychron_mouse` → UPower | yes, updated every 5 min |
-| Bluetooth | BLE battery service → kernel → UPower | yes |
-
-Other Keychron mice on a receiver only work if their USB ID is in the module's
-device table. The module always reports "discharging" and the model name
-"Keychron M5"; set *Mouse name* in the plugin settings to change the label.
+| Field | Value |
+| --- | --- |
+| ID | `dmopp/keychron-battery` |
+| Entries | Bar widget: `keychron-battery`; panel: `panel`; service: `service` |
 
 ## Requirements
 
-Install the kernel module (DKMS, rebuilt on kernel updates):
+- `upower` on `PATH`. The plugin reads all battery data from `upower --dump`.
+- For a mouse on a Keychron receiver or USB cable: the
+  [keychron-battery-dkms](https://github.com/csutcliff/keychron-battery-dkms)
+  kernel module. Keychron mice do not report their battery over standard HID;
+  the module queries it and exposes it as `/sys/class/power_supply/keychron_mouse`,
+  which UPower picks up. Check it with
+  `cat /sys/class/power_supply/keychron_mouse/capacity`.
+- Keychron mice over Bluetooth work without the module (standard BLE battery
+  service).
+
+## Usage
+
+Add the bar widget `dmopp/keychron-battery:keychron-battery` to a bar in
+Settings. It shows a mouse icon and the battery percentage, and hides itself
+while no Keychron mouse is found. Hover it for name and connection; left-click
+opens the panel with a battery bar per mouse and a refresh button.
 
 ```sh
-git clone https://github.com/csutcliff/keychron-battery-dkms.git
-sudo cp -r keychron-battery-dkms /usr/src/keychron-battery-0.1.2
-sudo dkms install keychron-battery/0.1.2
-sudo modprobe keychron_battery
-cat /sys/class/power_supply/keychron_mouse/capacity
+noctalia msg panel-toggle dmopp/keychron-battery:panel
 ```
 
-With Secure Boot the module has to be signed with your enrolled MOK key.
-
-## Install
-
-```sh
-noctalia msg plugins source add keychron-local path ~/coding-projects/keychron-niri
-noctalia msg plugins enable dquolke/keychron-battery
-```
-
-Then add a widget instance to a bar in `~/.local/state/noctalia/settings.toml`:
-
-```toml
-end = [ ..., "keychron", ... ]
-
-[widget.keychron]
-type = "dquolke/keychron-battery:keychron-battery"
-```
-
-`noctalia msg config-reload` applies it; `.luau` edits hot-reload.
+When the level drops to the notification threshold, the service sends one
+notification, and an urgent one at the critical threshold. Both re-arm after the
+mouse charges or climbs back 5% above the threshold.
 
 ## Settings
 
-- *Notify at (%)*: notification and red bar entry at this level (default 20).
-- *Critical threshold (%)*: second, urgent notification (default 10).
-- *Notifications*, *Poll interval*, *Mouse name*.
+| Setting | Type | Default | Description |
+| --- | --- | --- | --- |
+| `low_threshold` | `int` | `20` | Percent at which a notification is sent and the bar entry turns red (5–50). |
+| `critical_threshold` | `int` | `10` | Percent for a second, urgent notification (1–30). |
+| `notify` | `bool` | `true` | Send the low and critical notifications. |
+| `poll_interval` | `int` | `60` | Seconds between UPower reads (10–900). The kernel module itself refreshes every 5 minutes. |
+| `mouse_name` | `string` | empty | Name shown in tooltip, panel and notifications. Empty uses the UPower model name. |
+
+## IPC
+
+Re-read UPower immediately:
+
+```sh
+noctalia msg plugin dmopp/keychron-battery:service all refresh
+```
+
+## Notes
+
+- The plugin only spawns `upower --dump`. It makes no network calls and writes
+  no files.
+- Supported over receiver or cable: whatever the kernel module binds to,
+  currently the Ultra-Link 8K receiver (`3434:d028`) and the wired M5
+  (`3434:d048`). The module always reports the model "Keychron M5" and the
+  state "discharging", so set `mouse_name` for another model and expect no
+  charging indicator there.
+- Keychron keyboards are not shown: over the Keychron Link 2.4G receiver their
+  firmware does not report a battery level at all.

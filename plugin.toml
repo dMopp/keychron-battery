@@ -2,11 +2,11 @@
 # UPower (fed by the keychron-battery kernel module or Bluetooth) and owns the
 # low-battery notifications; widget and panel only render the published snapshot.
 
-id = "dquolke/keychron-battery"
+id = "dmopp/keychron-battery"
 name = "Keychron Battery"
-version = "2.0.0"
+version = "1.0.0"
 plugin_api = 24
-author = "dquolke"
+author = "dMopp"
 license = "MIT"
 icon = "mouse"
 description = "Battery of Keychron mice in the bar, with low-battery notifications. Needs keychron-battery-dkms for receiver and cable."
@@ -59,7 +59,7 @@ id = "keychron-battery"
 entry = "widget.luau"
 
   [widget.actions]
-  left = "panel-toggle dquolke/keychron-battery:panel"
+  left = "panel-toggle dmopp/keychron-battery:panel"
 
 [[panel]]
 id = "panel"
